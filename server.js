@@ -1,5 +1,6 @@
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
+const url = require('url');
 
 const PORT = process.env.PORT || 8080;
 const wss = new WebSocket.Server({ port: PORT });
@@ -36,10 +37,13 @@ function broadcastPeerList() {
   }
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
+  const parsedUrl = url.parse(req.url, true);
+  const customName = parsedUrl.query.name;
+
   const clientId = uuidv4();
-  const displayName = NAME_POOL[nameIndex % NAME_POOL.length];
-  nameIndex++;
+  const displayName = customName || NAME_POOL[nameIndex % NAME_POOL.length];
+  if (!customName) nameIndex++;
 
   clients.set(clientId, { ws, name: displayName });
 

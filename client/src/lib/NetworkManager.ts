@@ -1,14 +1,17 @@
 import { session } from './sessionStore';
 import { engine } from './AudioEngine';
 
-const WS_URL = 'ws://localhost:8080';
+const WS_URL = 'ws://136.113.32.114:8080';
 
 class NetworkManager {
   private ws: WebSocket | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private intentionalClose: boolean = false;
+  private lastProvidedName?: string;
 
-  connect() {
+  connect(name?: string) {
+    if (name !== undefined) this.lastProvidedName = name;
+
     // Guard against already open or currently connecting sockets
     if (this.ws) {
       if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
@@ -19,8 +22,12 @@ class NetworkManager {
     }
 
     this.intentionalClose = false;
-    console.log('[Net] Connecting to', WS_URL);
-    this.ws = new WebSocket(WS_URL);
+    let urlToConnect = WS_URL;
+    if (this.lastProvidedName) {
+      urlToConnect += `?name=${encodeURIComponent(this.lastProvidedName)}`;
+    }
+    console.log('[Net] Connecting to', urlToConnect);
+    this.ws = new WebSocket(urlToConnect);
 
     this.ws.onopen = () => {
       console.log('[Net] Connected');

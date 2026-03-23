@@ -280,15 +280,23 @@ export class AudioEngine {
   }
 
   private onMeasureStart(time: number) {
-    // 1. Play chunks from the PREVIOUS measure (Measure Latency)
-    const playbackMeasureId = this.currentMeasureId; 
+    // 1. Play chunks recorded 2 measures ago to ensure they have arrived over the network (2-measure latency loop)
+    const playbackMeasureId = Math.max(0, this.currentMeasureId - 2); 
     const chunksToPlay = this.remotePlayQueue.get(playbackMeasureId);
     
-    if (chunksToPlay) {
+    if (chunksToPlay && this.currentMeasureId >= 2) {
       for (const item of chunksToPlay) {
+        console.log(`[AudioEngine] Playing remote chunk for measure ${playbackMeasureId} from ${item.id}`);
         this.playRemoteChunk(item.id, item.data, time);
       }
       this.remotePlayQueue.delete(playbackMeasureId);
+    }
+
+    // Clean up ancient chunks (e.g. dropped out or received super late)
+    for (const key of this.remotePlayQueue.keys()) {
+      if (key < playbackMeasureId) {
+        this.remotePlayQueue.delete(key);
+      }
     }
 
     // Capture the ID for the data we are about to FLUSH (the measure that just ended)
