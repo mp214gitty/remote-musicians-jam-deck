@@ -188,10 +188,12 @@ export class AudioEngine {
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
+          console.log(`[Audio] Sending chunk for measure ${this.currentMeasureId} (${e.data.size} bytes)`);
           import('./NetworkManager').then(m => m.network.sendAudioChunk(e.data, this.currentMeasureId));
         }
       };
       recorder.start();
+      console.log(`[Audio] Recording started for ${label}`);
 
       const input: InputChannel = { deviceId, label, channelId, stream, recorder, sourceNode: new Tone.UserMedia() };
       this.inputChannels.set(channelId, input);
@@ -312,6 +314,7 @@ export class AudioEngine {
           };
           input.recorder.stop();
           input.recorder.start();
+          console.log(`[Audio] Cycled recorder for ${input.label}`);
           // Restore handler for the newly started recording (which will use the new this.currentMeasureId)
           setTimeout(() => { input.recorder.ondataavailable = oldHandler; }, 50);
         } catch (e) {
