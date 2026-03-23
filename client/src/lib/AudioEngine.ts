@@ -258,11 +258,17 @@ export class AudioEngine {
     console.log(`[AudioEngine] Input ${channelId} removed`);
   }
 
-  public async startMetronome() {
+  public async startMetronome(startTime?: number) {
     await Tone.start();
+    console.log(`[Audio] Transport Start. Context State: ${Tone.getContext().state}`);
     this.currentMeasureId = 0; // Reset sync on start
     this.remotePlayQueue.clear();
-    Tone.Transport.start();
+    
+    if (startTime !== undefined) {
+      Tone.Transport.start(startTime);
+    } else {
+      Tone.Transport.start();
+    }
     
     // Auto-add default mic input if no inputs exist yet AND user has not manually removed them
     if (this.inputChannels.size === 0 && this.inputCounter === 0) {

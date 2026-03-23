@@ -7,6 +7,7 @@ class NetworkManager {
   private ws: WebSocket | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private intentionalClose: boolean = false;
+  private serverTimeOffset: number = 0; // serverTime - localTime
 
   connect() {
     // Guard against already open or currently connecting sockets
@@ -21,6 +22,7 @@ class NetworkManager {
     this.intentionalClose = false;
     console.log('[Net] Connecting to', WS_URL);
     this.ws = new WebSocket(WS_URL);
+    this.ws.binaryType = 'arraybuffer';
 
     this.ws.onopen = () => {
       console.log('[Net] Connected');
@@ -29,26 +31,26 @@ class NetworkManager {
     };
 
     this.ws.onmessage = (event) => {
-      if (event.data instanceof Blob) {
-        event.data.arrayBuffer().then((buf) => {
-          const textDecoder = new TextDecoder();
-          const full = new Uint8Array(buf);
-          
-          // Format from server: "senderId|measureId|audioData"
-          const pipe1 = full.indexOf(0x7C); // 1st '|'
-          if (pipe1 === -1) return;
-          const senderId = textDecoder.decode(full.slice(0, pipe1));
-          
-          const remaining = full.slice(pipe1 + 1);
-          const pipe2 = remaining.indexOf(0x7C); // 2nd '|'
-          if (pipe2 === -1) return;
-          const measureIdStr = textDecoder.decode(remaining.slice(0, pipe2));
-          const measureId = parseInt(measureIdStr);
-          
-          // The actual audio data starts after the 2nd pipe
-          const audioBuf = remaining.buffer.slice(remaining.byteOffset + pipe2 + 1);
-          engine.queueRemoteAudio(senderId, audioBuf, measureId);
-        });
+      if (event.data instanceof ArrayBuffer) {
+        const full = new Uint8Array(event.data);
+        const textDecoder = new TextDecoder();
+        
+        // Format from server: "senderId|measureId|audioData"
+        const pipe1 = full.indexOf(0x7C); // 1st '|'
+        if (pipe1 === -1) return;
+        const senderId = textDecoder.decode(full.slice(0, pipe1));
+        
+        const remaining = full.slice(pipe1 + 1);
+        const pipe2 = remaining.indexOf(0x7C); // 2nd '|'
+        if (pipe2 === -1) return;
+        const measureIdStr = textDecoder.decode(remaining.slice(0, pipe2));
+        const measureId = parseInt(measureIdStr);
+        
+        console.log(`[Net] Received audio measure ${measureId} from ${senderId} (${event.data.byteLength} bytes)`);
+        
+        // The actual audio data starts after the 2nd pipe
+        const audioBuf = event.data.slice(pipe1 + 1 + pipe2 + 1);
+        engine.queueRemoteAudio(senderId, audioBuf, measureId);
         return;
       }
 
@@ -76,7 +78,11 @@ class NetworkManager {
             if (typeof msg.state.playing === 'boolean') {
               session.setPlaying(msg.state.playing);
               if (msg.state.playing) {
-                engine.startMetronome();
+                // Synchronized start
+                const localStartTime = (msg.state.serverStartTime || Date.now()) - this.serverTimeOffset;
+                const delayMs = localStartTime - Date.now();
+                console.log(`[Net] Scheduled start in ${delayMs}ms (shared clock)`);
+                setTimeout(() => engine.startMetronome(), Math.max(0, delayMs));
               } else {
                 engine.stopMetronome();
               }
@@ -85,8 +91,10 @@ class NetworkManager {
 
           case 'pong':
             const now = Date.now();
-            const latency = (now - msg.clientTime) / 2;
-            console.log(`[Net] Latency: ${latency.toFixed(1)}ms`);
+            const rtt = now - msg.clientTime;
+            const latency = rtt / 2;
+            this.serverTimeOffset = (msg.serverTime - latency) - msg.clientTime;
+            console.log(`[Net] Latency: ${latency.toFixed(1)}ms | Clock Offset: ${this.serverTimeOffset}ms`);
             break;
         }
       } catch (err) {
