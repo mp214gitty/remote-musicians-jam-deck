@@ -1,7 +1,7 @@
 import { session } from './sessionStore';
 import { engine } from './AudioEngine';
 
-const WS_URL = 'ws://localhost:8080';
+const WS_URL = 'ws://136.113.32.114:8080';
 
 class NetworkManager {
   private ws: WebSocket | null = null;
