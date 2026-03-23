@@ -1,0 +1,35 @@
+{
+  "name": "client",
+  "private": true,
+  "version": "0.0.0",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "npm run build:electron && concurrently \"vite\" \"wait-on tcp:5173 && node start-electron.js\"",
+    "build:electron": "esbuild electron/main.ts --bundle --platform=node --format=cjs --external:electron --external:electron/main --external:electron/renderer --outfile=dist-electron/main.cjs && esbuild electron/preload.ts --bundle --platform=node --format=cjs --external:electron --external:electron/main --external:electron/renderer --outfile=dist-electron/preload.cjs",
+    "build": "vite build && npm run build:electron",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@tsconfig/svelte": "^5.0.8",
+    "@types/node": "^24.12.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^41.0.3",
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.27.4",
+    "svelte": "^5.53.12",
+    "svelte-check": "^4.4.5",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.1",
+    "vite-plugin-electron": "^0.29.1",
+    "vite-plugin-electron-renderer": "^0.14.6",
+    "wait-on": "^9.0.4"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.3",
+    "tone": "^15.1.22",
+    "wasm-media-encoders": "^0.7.0"
+  }
+}

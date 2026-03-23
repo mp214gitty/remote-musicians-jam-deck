@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dist-electron/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+.vscode/
+.idea/
+.svelte-kit/
+build/
+package-lock.json (ignore if user wants purely lock-free, but usually included)
+# Keep package-lock.json for now.
